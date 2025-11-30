@@ -1,5 +1,5 @@
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError
 import pandas as pd
 from tqdm import tqdm
 
@@ -14,7 +14,7 @@ def slow_square(x: int) -> int:
     return x * x
 
 
-def run_in_threads(values):
+def run_in_threads(values, time_limit):
     """
     Run slow_square(x) concurrently using ThreadPoolExecutor,
     track progress with tqdm, and map results back to the original input order.
@@ -45,7 +45,11 @@ def run_in_threads(values):
 
                 try:
                     # Retrieve actual result from the completed task
-                    result = future.result()
+                    result = future.result(timeout=time_limit)
+                    
+                except TimeoutError:
+                    # If the worker took too long
+                    print(f"Task {idx} failed: TIMEOUT (>{time_limit}s)")
 
                 except Exception as e:
                     # If the task raised an exception inside the worker thread
@@ -71,7 +75,7 @@ if __name__ == "__main__":
     values = [1, 2, 3, 4, 5]
 
     # Run the threaded workflow
-    df_results = run_in_threads(values)
+    df_results = run_in_threads(values, time_limit=3)
 
     print("\nFinal results:")
     print(df_results)
