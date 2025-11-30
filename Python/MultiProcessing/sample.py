@@ -1,5 +1,5 @@
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed, TimeoutError
 import pandas as pd
 from tqdm import tqdm
 
@@ -18,7 +18,7 @@ def slow_square(x: int) -> int:
     return x * x
 
 
-def run_in_processes(values):
+def run_in_processes(values, time_limit):
     """
     Run slow_square(x) concurrently using ProcessPoolExecutor,
     track progress with tqdm, and map results back to original input order.
@@ -47,7 +47,12 @@ def run_in_processes(values):
 
                 try:
                     # Get the result from the worker process
-                    result = future.result()
+                    result = future.result(timeout=time_limit)
+                    
+                except TimeoutError:
+                    # If the worker took too long
+                    print(f"Task {idx} failed: TIMEOUT (>{time_limit}s)")
+                    
                 except Exception as e:
                     # If something went wrong in the child process
                     print(f"Task {idx} failed: {e}")
@@ -71,7 +76,7 @@ if __name__ == "__main__":
     # so that child processes can safely import this module.
     values = [1, 2, 3, 4, 5]
 
-    df_results = run_in_processes(values)
+    df_results = run_in_processes(values, time_limit=3)
 
     print("\nFinal results:")
     print(df_results)
